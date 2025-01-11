@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "ms-vscode-remote.remote-containers",
+        "ms-python.python",
+        "ms-python.black-formatter",
+        "PKief.material-icon-theme"
+    ]
+}

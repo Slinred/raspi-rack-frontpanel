@@ -1,0 +1,19 @@
+{
+	"name": "raspi-rack-frontpanel-dev",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	"build": {
+		"context": "..",
+		"dockerfile": "Dockerfile"
+	},
+	"postAttachCommand": "source ${PYTHON_ENV}/bin/activate",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-vscode-remote.remote-containers",
+				"ms-python.python",
+				"ms-python.black-formatter",
+				"PKief.material-icon-theme"
+			]
+		}
+	}
+}
