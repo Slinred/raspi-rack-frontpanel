@@ -51,7 +51,7 @@ class BootScreen(StatusScreenBase):
 
         if self._progress > 100:
             self._progress += 100 / (self.BOOT_TIME / self.REDRAW_INTERVAL)
-            self.__images__.put(self._curimg)
+            self.__add_rendered_image__(self._curimg)
             return
 
         image, draw = self.__create_image__()
@@ -59,34 +59,35 @@ class BootScreen(StatusScreenBase):
         for pixel in self.__get_pixels_by_color__(self._background_img):
             draw.point(pixel, 1)
 
-        if self._progress < (100 / self.SEGMENTATION):
-            draw.line(
-                [
-                    self.SCREEN_PROGRESSBAR_START,
-                    (
-                        self.SCREEN_PROGRESSBAR_START[0]
-                        + (self._progress * self.SEGMENTATION),
-                        self.SCREEN_PROGRESSBAR_START[1],
-                    ),
-                ],
-                fill=1,
-            )
-        else:
-            hb_pixels = self.__get_pixels_by_color__(self._heartbeat_img)
-            hb_pixels.sort(key=lambda x: x[0])  # sort pixels from left to right
-            draw.point(
-                [
-                    (
-                        pixel[0] + self.SCREEN_PROGRESSBAR_START[0],
-                        self.SCREEN_PROGRESSBAR_START[1]
-                        + (pixel[1] - (self._heartbeat_img.height // 2)),
-                    )
-                    for pixel in hb_pixels
-                    if pixel[0] <= self._progress
-                ],
-                fill=1,
-            )
+        draw.line(
+            [
+                (
+                    self.SCREEN_PROGRESSBAR_START[0] + self._progress,
+                    self.SCREEN_PROGRESSBAR_START[1],
+                ),
+                (
+                    self.SCREEN_PROGRESSBAR_START[0] + 100,
+                    self.SCREEN_PROGRESSBAR_START[1],
+                ),
+            ],
+            fill=1,
+        )
 
-        self._progress += 100 / ((self.BOOT_TIME * 1.2) / self.REDRAW_INTERVAL)
+        hb_pixels = self.__get_pixels_by_color__(self._heartbeat_img)
+        hb_pixels.sort(key=lambda x: x[0])  # sort pixels from left to right
+        draw.point(
+            [
+                (
+                    pixel[0] + self.SCREEN_PROGRESSBAR_START[0],
+                    self.SCREEN_PROGRESSBAR_START[1]
+                    + (pixel[1] - (self._heartbeat_img.height // 2)),
+                )
+                for pixel in hb_pixels
+                if pixel[0] <= self._progress
+            ],
+            fill=1,
+        )
+
+        self._progress += 100 / ((self.BOOT_TIME * 1.25) / self.REDRAW_INTERVAL)
         self._curimg = image
-        self.__images__.put(image, block=True)
+        self.__add_rendered_image__(image)

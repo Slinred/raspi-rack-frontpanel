@@ -69,4 +69,4 @@ class SvcStatusScreen(StatusScreenBase):
             fill=1,
         )
 
-        self.__images__.put(image, block=True)
+        self.__add_rendered_image__(image)

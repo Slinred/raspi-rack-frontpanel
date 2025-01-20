@@ -1,4 +1,5 @@
 from PIL import Image, ImageDraw
+import logging
 import threading
 import abc
 import queue
@@ -9,6 +10,8 @@ class StatusScreenBase(abc.ABC):
     """
     @brief  Base class defining a status screen on an display with fixed with
     """
+
+    RENDER_COUNT = 2
 
     def __init__(
         self,
@@ -26,24 +29,59 @@ class StatusScreenBase(abc.ABC):
         if not isinstance(redraw_interval, (int, float)):
             raise TypeError("Param redraw_interval must be of type int or float")
 
+        self.__logger__ = logging.getLogger(self.__class__.__name__)
+
         self.__width__ = width
         self.__height__ = height
         self.__display_time_s__ = display_time_s
         self._redraw_interval = redraw_interval
-        self.__images__ = queue.Queue(2)
+        self.__images__ = queue.Queue(self.RENDER_COUNT)
         self.__thread_lock__ = threading.Lock()
         self.__done_event__ = threading.Event()
         self.__done_event__.clear()
-        self._thread = None
+        # rendering threads will be handled as FIFO
+        self._render_threads: list[threading.Thread] = [None, None]
 
-    def render(self, blocking=False):
-        self._thread = threading.Thread(
-            target=self.__render__, name=f"{self.__class__.__name__}"
+        self.__logger__.debug(
+            f"New instance created with size {'x'.join([str(width), str(height)])}px, display_time={display_time_s}s, redraw_interval={redraw_interval}s"
         )
 
-        self._thread.start()
+    def stop(self):
+        for thread in self._render_threads:
+            if isinstance(thread, threading.Thread):
+                self.__logger__.debug(f"Waiting for thread '{thread}' to terminate...")
+                thread.join()
+
+    def render(self, blocking=False):
+        render_thread: threading.Thread = None
+        for idx in range(self.RENDER_COUNT):
+            # find the next free element and create a new render thread for this
+            if (
+                not self._render_threads[idx]
+                or not self._render_threads[idx].is_alive()
+            ):
+                self._render_threads[idx] = threading.Thread(
+                    target=self.__render__,
+                    name=f"{self.__class__.__name__}-{self.render.__name__}-{idx}",
+                )
+                self.__logger__.debug(
+                    f"Starting new renderer thread '{self._render_threads[idx].name}'..."
+                )
+                self._render_threads[idx].start()
+                render_thread = self._render_threads[idx]
+                break
+        # if all render threads are active, pick the first one
+        if not render_thread:
+            self.__logger__.warning(
+                f"All renderer threads are busy, declining new render request!"
+            )
+            render_thread = self._render_threads[0]
+
         if blocking:
-            self._thread.join()
+            self.__logger__.debug(
+                f"Waiting for thread '{render_thread}' to terminate..."
+            )
+            render_thread.join()
 
     def get_image(self) -> Image.Image:
         image = self.__images__.get()
@@ -102,6 +140,12 @@ class StatusScreenBase(abc.ABC):
         text_len = draw.textlength(text, draw.font)
         xpos = (draw._image.width - text_len) // 2
         return xpos
+
+    def __add_rendered_image__(self, image: Image.Image):
+        try:
+            self.__images__.put(image, timeout=self._redraw_interval, block=True)
+        except:
+            self.__logger__.warning("image render queue is full, image discarded!")
 
     @abc.abstractmethod
     def __render__(self):

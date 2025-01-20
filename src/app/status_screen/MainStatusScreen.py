@@ -1,5 +1,6 @@
 import socket
 import psutil
+import ipaddress
 
 from PIL import ImageFont
 from status_screen.StatusScreenBase import StatusScreenBase, Image, ImageDraw
@@ -18,8 +19,12 @@ class MainStatusScreen(StatusScreenBase):
             if interface_name in addrs:
                 for addr in addrs[interface_name]:
                     if addr.family.name == "AF_INET":  # Check for IPv4
-                        return addr.address
-            return "?.?.?.?"  # Return None if no IPv4 address found
+                        # Convert to CIDR notation
+                        network = ipaddress.IPv4Network(
+                            f"{addr.address}/{addr.netmask}", strict=False
+                        )
+                        return addr.address, str(network).split("/")[1]
+            return "?.?.?.?/?"  # Return None if no IPv4 address found
 
         line_count = 2
         image, draw = self.__create_image__()
@@ -45,19 +50,20 @@ class MainStatusScreen(StatusScreenBase):
             fill=1,
         )
 
-        ip = get_ipv4_address("eth0")
+        ip, cidr = get_ipv4_address("eth0")
+        text = f"{ip}/{cidr}"
         draw.text(
             (
-                self.__hcenter_text__(ip, draw),
+                self.__hcenter_text__(text, draw),
                 (
                     2
                     + Constants.SCREEN_TEXT_CONFIG[line_count]["FONT_SIZE"]
                     + Constants.SCREEN_TEXT_CONFIG[line_count]["HSPACE"]
                 ),
             ),
-            ip,
+            text,
             font=font,
             fill=1,
         )
 
-        self.__images__.put(image, block=True)
+        self.__add_rendered_image__(image)
