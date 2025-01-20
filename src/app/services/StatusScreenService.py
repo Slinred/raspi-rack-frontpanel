@@ -54,8 +54,9 @@ class StatusScreenService(ServiceBase):
                 height=size[1],
                 rotate=rotation,
             )
-        except:
-            raise Exception("Failed to initilize display device!")
+        except Exception as e:
+            self.__logger__.exception(e)
+            return
 
         self._lock = threading.Lock()
 
@@ -129,6 +130,12 @@ class StatusScreenService(ServiceBase):
 
         self._device.clear()
         self._device.hide()
+
+        if isinstance(display_thread, threading.Thread):
+            display_thread.join()
+
+        for screen in self._screens:
+            screen.stop()
 
     def _display_screen(self):
         if not isinstance(self._screen, StatusScreenBase):
